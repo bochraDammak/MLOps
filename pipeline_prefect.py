@@ -11,6 +11,8 @@ from model_pipeline import (
     save_model,
     train_model,
 )
+import shutil
+from pathlib import Path
 
 # Seuls ces fichiers sont analysés (qualité et sécurité)
 FILES = ["model_pipeline.py", "main.py", "pipeline_prefect.py"]
@@ -50,6 +52,14 @@ def unit_tests():
     run([sys.executable, "-m", "pytest", "-q", "test_model.py"])
 
 
+@task(name="Nettoyage de l'environnement")
+def clean_project():
+    for folder in ["__pycache__", ".pytest_cache"]:
+        shutil.rmtree(folder, ignore_errors=True)
+    Path(MODEL_PATH).unlink(missing_ok=True)
+    print("Environnement nettoyé (cache + modèle supprimés)")
+
+
 # ---------- Tasks : données et modèle ----------
 @task(name="Préparation des données")
 def prepare_task():
@@ -74,6 +84,11 @@ def load_task():
 @task(name="Évaluation du modèle")
 def evaluate_task(model, X_test, y_test):
     return evaluate_model(model, X_test, y_test)
+
+
+@flow(name="clean")
+def clean_flow():
+    clean_project()
 
 
 # ---------- Flows ----------
@@ -121,6 +136,7 @@ FLOWS = {
     "evaluate": evaluate_flow,
     "code": code_flow,
     "install": install_flow,
+    "clean": clean_flow,
 }
 
 if __name__ == "__main__":
